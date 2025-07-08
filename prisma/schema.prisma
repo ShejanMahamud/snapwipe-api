@@ -24,6 +24,7 @@ model User {
   profilePhoto       String     @default("https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff")
   isDeleted Boolean @default(false)
   status Boolean @default(false)
+  refreshToken String 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -1,10 +1,21 @@
+import { BadRequestException } from '@nestjs/common';
 import * as argon from 'argon2';
 
 export class Util {
-  static hashPassword(password: string) {
-    return argon.hash(password);
+  static hash(string: string) {
+    return argon.hash(string);
   }
-  static matchPassword(hash: string, password: string) {
+  static match(hash: string, password: string) {
     return argon.verify(hash, password);
+  }
+  static success(message: string, data?: any) {
+    return {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data,
+      message,
+    };
+  }
+  static error(message: string, errors?: any[]) {
+    throw new BadRequestException({ message, errors });
   }
 }
