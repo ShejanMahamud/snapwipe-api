@@ -1,6 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
 import * as argon from 'argon2';
-
 export class Util {
   static hash(string: string) {
     return argon.hash(string);

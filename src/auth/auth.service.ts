@@ -97,4 +97,23 @@ export class AuthService {
       },
     });
   }
+
+  async logOut(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+    if (!user || !user.refreshToken) {
+      throw new ForbiddenException('User or user refresh token not found!');
+    }
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        refreshToken: '',
+      },
+    });
+  }
 }

@@ -56,7 +56,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(status).json({
-      status: 'error',
+      success: false,
       message,
       errors,
       meta: {

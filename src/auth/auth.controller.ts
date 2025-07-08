@@ -32,7 +32,6 @@ export class AuthController {
     description: 'Bad Request (Validation Error)',
     type: SignupErrorResponseDto,
   })
-
   async register(@Body() dto: registerDto) {
     await this.auth.signUp(dto);
     return Util.success('Register Successful');
@@ -76,5 +75,12 @@ export class AuthController {
     );
 
     return newAccessToken.access_token;
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  async logOut(@Body() userId: string) {
+    await this.auth.logOut(userId);
+    return Util.success('Logout successfully!');
   }
 }

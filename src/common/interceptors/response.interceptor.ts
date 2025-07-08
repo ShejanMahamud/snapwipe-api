@@ -19,7 +19,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
         const statusCode = response.statusCode;
 
         return {
-          status: true,
+          success: true,
           message: data?.message || 'Request successful',
           data: data?.data !== undefined ? data.data : data,
           meta: {
