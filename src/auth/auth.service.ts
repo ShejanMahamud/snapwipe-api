@@ -22,6 +22,7 @@ export class AuthService {
     return await this.prisma.user.create({
       data: {
         ...dto,
+        status: true,
         profilePhoto: dto.profilePhoto
           ? dto.profilePhoto
           : `https://ui-avatars.com/api/?name=${dto.name}&background=random&color=fff`,

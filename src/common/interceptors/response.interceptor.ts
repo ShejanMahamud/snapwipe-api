@@ -14,18 +14,22 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
     const response = context.switchToHttp().getResponse();
 
     return next.handle().pipe(
-      map((data) => {
-        // Make sure status code is already set (default is 200)
+      map((originalResponse) => {
         const statusCode = response.statusCode;
+
+        const data = originalResponse?.data ?? originalResponse;
+        const message = originalResponse?.message ?? 'Request successful';
+        const customMeta = originalResponse?.meta ?? {};
 
         return {
           success: true,
-          message: data?.message || 'Request successful',
-          data: data?.data !== undefined ? data.data : data,
+          message,
+          data,
           meta: {
             statusCode,
             timestamp: new Date().toISOString(),
             path: request.url,
+            ...customMeta,
           },
         };
       }),

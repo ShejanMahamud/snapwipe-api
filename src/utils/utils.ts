@@ -7,10 +7,12 @@ export class Util {
   static match(hash: string, password: string) {
     return argon.verify(hash, password);
   }
-  static success(message: string, data?: any) {
+  static success(message: string, data?: any, meta?: any) {
     return {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       data,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      meta,
       message,
     };
   }

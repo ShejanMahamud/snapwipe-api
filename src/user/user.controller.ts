@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Util } from 'src/utils/utils';
 import { UserService } from './user.service';
 
 @ApiTags('Users')
@@ -7,7 +8,18 @@ import { UserService } from './user.service';
 export class UserController {
   constructor(private user: UserService) {}
   @Get('all')
-  getAllUsers(): string {
-    return this.user.getAllUsers();
+  async getAllUsers(@Query() query: { limit: string; cursor: string }) {
+    const take = parseInt(query.limit);
+    const users = await this.user.getAllUser(take, query.cursor);
+
+    if (query.limit || query.cursor) {
+      return Util.success('User retrieved successfully!', users, {
+        limit: query.limit,
+        count: users.length,
+        nextCursor: users.length > 0 ? users[users.length - 1].id : null,
+        hasNextPage: users.length > take,
+      });
+    }
+    return Util.success('User retrieved successfully!', users);
   }
 }
