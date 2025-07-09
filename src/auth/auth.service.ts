@@ -1,13 +1,13 @@
-import { MailerService } from '@nestjs-modules/mailer';
+import { InjectQueue } from '@nestjs/bullmq';
 import {
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Queue } from 'bullmq';
 import { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils/utils';
@@ -20,7 +20,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-    private mailer: MailerService,
+    @InjectQueue('mailer') private mailerQueue: Queue,
   ) {}
   async signUp(dto: registerDto, req: Request) {
     await this.prisma.user.create({
@@ -34,20 +34,24 @@ export class AuthService {
         refreshToken: '',
       },
     });
-    try {
-      await this.mailer.sendMail({
+    await this.mailerQueue.add(
+      'send-welcome',
+      {
         to: dto.email,
-        subject: 'Welcome to SnapWipe',
-        template: 'welcome',
-        context: {
-          name: dto.name,
-          action_url: `${req.protocol}://${req.host}}`,
-          year: new Date().getFullYear(),
+        name: dto.name,
+        action_url: `${req.protocol}://${req.get('host')}`,
+        year: new Date().getFullYear(),
+      },
+      {
+        removeOnComplete: {
+          age: 3600,
+          count: 1000,
         },
-      });
-    } catch (error) {
-      throw new InternalServerErrorException(error);
-    }
+        removeOnFail: {
+          age: 3600 * 24,
+        },
+      },
+    );
   }
 
   async signIn(dto: signinDto) {
