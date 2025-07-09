@@ -1,4 +1,3 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -8,14 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtRefreshStrategy, JwtStrategy } from './strategy';
 
 @Module({
-  imports: [
-    PassportModule,
-    JwtModule.register({}),
-    BullModule.registerQueue({
-      name: 'mailer',
-    }),
-    MailModule,
-  ],
+  imports: [PassportModule, JwtModule.register({}), MailModule],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
 })

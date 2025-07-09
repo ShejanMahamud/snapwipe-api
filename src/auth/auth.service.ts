@@ -1,4 +1,3 @@
-import { InjectQueue } from '@nestjs/bullmq';
 import {
   ForbiddenException,
   Injectable,
@@ -7,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Queue } from 'bullmq';
 import { Request } from 'express';
+import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils/utils';
 import { registerDto } from './dto/register.dto';
@@ -20,7 +19,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-    @InjectQueue('mailer') private mailerQueue: Queue,
+    private mailer: MailService,
   ) {}
   async signUp(dto: registerDto, req: Request) {
     await this.prisma.user.create({
@@ -34,23 +33,10 @@ export class AuthService {
         refreshToken: '',
       },
     });
-    await this.mailerQueue.add(
-      'send-welcome',
-      {
-        to: dto.email,
-        name: dto.name,
-        action_url: `${req.protocol}://${req.get('host')}`,
-        year: new Date().getFullYear(),
-      },
-      {
-        removeOnComplete: {
-          age: 3600,
-          count: 1000,
-        },
-        removeOnFail: {
-          age: 3600 * 24,
-        },
-      },
+    await this.mailer.sendWelcomeEmail(
+      dto.email,
+      dto.name,
+      `${req.protocol}://${req.get('host')}`,
     );
   }
 

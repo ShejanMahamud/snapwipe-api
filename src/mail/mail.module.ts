@@ -3,10 +3,13 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
+import { QueueModule } from 'src/queue/queue.module';
+import { MailService } from './mail.service';
 import { MailProcessor } from './mailer.processor';
 
 @Module({
   imports: [
+    QueueModule,
     MailerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -19,7 +22,7 @@ import { MailProcessor } from './mailer.processor';
           },
         },
         defaults: {
-          from: `"No Reply" <${config.get<string>('EMAIL_FROM')}>`,
+          from: `"No Reply - SnapWipe" <${config.get<string>('EMAIL_FROM')}>`,
         },
         template: {
           dir: join(process.cwd(), 'src', 'mail', 'templates'),
@@ -31,6 +34,7 @@ import { MailProcessor } from './mailer.processor';
       }),
     }),
   ],
-  providers: [MailProcessor],
+  providers: [MailProcessor, MailService],
+  exports: [MailService],
 })
 export class MailModule {}
