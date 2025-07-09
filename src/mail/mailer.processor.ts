@@ -11,18 +11,26 @@ export class MailProcessor extends WorkerHost {
     job: Job<{
       to: string;
       name: string;
-      action_url: string;
+      url: string;
       year: number;
     }>,
   ): Promise<any> {
-    const { to, name, action_url, year } = job.data;
+    const { to, name, url, year } = job.data;
 
     if (job.name === 'send-welcome') {
       return await this.mailer.sendMail({
         to,
         subject: 'Welcome to SnapWipe',
         template: 'welcome',
-        context: { name, action_url, year },
+        context: { name, url, year },
+      });
+    }
+    if (job.name === 'send-reset-password') {
+      return await this.mailer.sendMail({
+        to,
+        subject: 'Reset Your Password',
+        template: 'reset-password',
+        context: { name, url, year },
       });
     }
   }

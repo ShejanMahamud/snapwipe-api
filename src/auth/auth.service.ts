@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -30,7 +31,6 @@ export class AuthService {
           ? dto.profilePhoto
           : `https://ui-avatars.com/api/?name=${dto.name}&background=random&color=fff`,
         password: await Util.hash(dto.password),
-        refreshToken: '',
       },
     });
     await this.mailer.sendWelcomeEmail(
@@ -56,6 +56,58 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
     return tokens;
+  }
+
+  async sendResetPasswordEmail(email: string, req: Request) {
+    const resetToken = randomBytes(32).toString('hex');
+    const hashedToken = await Util.hash(resetToken);
+    const user = await this.prisma.user.update({
+      where: {
+        email,
+        status: true,
+        isDeleted: false,
+      },
+      data: {
+        resetToken: hashedToken,
+        resetTokenExp: new Date(Date.now() + 1000 * 60 * 15),
+      },
+    });
+    if (!user) throw new NotFoundException('User not found!');
+    const resetUrl = `${req.protocol}://${req.get('host')}/rt=${resetToken}&uid=${user.id}`;
+    await this.mailer.passwordResetEmail(user.email, user.name, resetUrl);
+    return { message: 'Reset email sent' };
+  }
+
+  async resetPassword(rt: string, uid: string, newPassword: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: {
+          id: uid,
+          status: true,
+          isDeleted: false,
+        },
+      });
+      if (!user || !user.resetToken || !user.resetTokenExp) {
+        throw new UnauthorizedException('User not found!');
+      }
+      const isMatched = await Util.match(user.resetToken, rt);
+      if (!isMatched)
+        throw new UnauthorizedException('Reset Token is not valid!');
+      if (user.resetTokenExp < new Date())
+        throw new ForbiddenException('Reset token is expired');
+
+      await this.prisma.user.update({
+        where: {
+          id: user.id,
+          status: true,
+          isDeleted: false,
+        },
+        data: {
+          password: newPassword,
+        },
+      });
+    });
+    return { message: 'Password successfully reset' };
   }
 
   async refreshTokens(userId: string, refreshToken: string) {

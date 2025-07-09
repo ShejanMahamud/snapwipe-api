@@ -26,4 +26,24 @@ export class MailService {
       },
     );
   }
+  async passwordResetEmail(to: string, name: string, url: string) {
+    await this.mailerQueue.add(
+      'send-reset-password',
+      {
+        to,
+        name,
+        url,
+        year: new Date().getFullYear(),
+      },
+      {
+        removeOnComplete: {
+          age: 3600,
+          count: 1000,
+        },
+        removeOnFail: {
+          age: 3600 * 24,
+        },
+      },
+    );
+  }
 }
