@@ -12,6 +12,7 @@ import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils/utils';
 import { registerDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { signinDto } from './dto/signin.dto';
 
 @Injectable()
@@ -78,11 +79,11 @@ export class AuthService {
     return { message: 'Reset email sent' };
   }
 
-  async resetPassword(rt: string, uid: string, newPassword: string) {
+  async resetPassword(dto: ResetPasswordDto) {
     await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: {
-          id: uid,
+          id: dto.userId,
           status: true,
           isDeleted: false,
         },
@@ -90,7 +91,7 @@ export class AuthService {
       if (!user || !user.resetToken || !user.resetTokenExp) {
         throw new UnauthorizedException('User not found!');
       }
-      const isMatched = await Util.match(user.resetToken, rt);
+      const isMatched = await Util.match(user.resetToken, dto.refreshToken);
       if (!isMatched)
         throw new UnauthorizedException('Reset Token is not valid!');
       if (user.resetTokenExp < new Date())
@@ -103,7 +104,7 @@ export class AuthService {
           isDeleted: false,
         },
         data: {
-          password: newPassword,
+          password: dto.newPassword,
         },
       });
     });

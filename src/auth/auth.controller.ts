@@ -6,6 +6,7 @@ import { Util } from 'src/utils/utils';
 import { AuthService } from './auth.service';
 import { SignupResponseDto } from './dto/register-response.dto';
 import { registerDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignInErrorResponseDto } from './dto/signin-error-response.dto';
 import { SigninResponseDto } from './dto/signin-response.dto';
 import { signinDto } from './dto/signin.dto';
@@ -75,6 +76,18 @@ export class AuthController {
     );
 
     return newAccessToken.access_token;
+  }
+
+  @Post('password-reset-email')
+  async sendPasswordResetEmail(@Body() email: string, @Req() req: Request) {
+    await this.auth.sendResetPasswordEmail(email, req);
+    return Util.success('Password Reset Email Sent Successfully!');
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto);
+    return Util.success('Password Reset Successfully!');
   }
 
   @Post('logout')
