@@ -40,12 +40,18 @@ export class AuthService {
       dto.name,
       `${req.protocol}://${req.get('host')}`,
     );
+    return { message: 'User registered successfully' };
   }
 
   async signIn(dto: signinDto) {
     const user = await this.prisma.user.findUnique({
       where: {
         email: dto.email,
+      },
+      select: {
+        email: true,
+        id: true,
+        password: true,
       },
     });
     if (!user) {
@@ -63,18 +69,31 @@ export class AuthService {
   async sendResetPasswordEmail(email: string, req: Request) {
     const resetToken = randomBytes(32).toString('hex');
     const hashedToken = await Util.hash(resetToken);
-    const user = await this.prisma.user.update({
-      where: {
-        email,
-        status: true,
-        isDeleted: false,
-      },
-      data: {
-        resetToken: hashedToken,
-        resetTokenExp: new Date(Date.now() + 1000 * 60 * 15),
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: {
+          email,
+          status: true,
+          isDeleted: false,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      });
+      if (!user) throw new NotFoundException('User not found!');
+      await tx.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          resetToken: hashedToken,
+          resetTokenExp: new Date(Date.now() + 1000 * 60 * 15),
+        },
+      });
+      return user;
     });
-    if (!user) throw new NotFoundException('User not found!');
     const resetUrl = `${req.protocol}://${req.get('host')}/rt=${resetToken}&uid=${user.id}`;
     await this.mailer.passwordResetEmail(user.email, user.name, resetUrl);
     return { message: 'Reset email sent' };
@@ -87,6 +106,11 @@ export class AuthService {
           id: dto.userId,
           status: true,
           isDeleted: false,
+        },
+        select: {
+          resetToken: true,
+          resetTokenExp: true,
+          id: true,
         },
       });
       if (!user || !user.resetToken || !user.resetTokenExp) {
@@ -105,7 +129,9 @@ export class AuthService {
           isDeleted: false,
         },
         data: {
-          password: dto.newPassword,
+          password: await Util.hash(dto.newPassword),
+          resetToken: null,
+          resetTokenExp: null,
         },
       });
     });
@@ -120,6 +146,10 @@ export class AuthService {
           isDeleted: false,
           id: dto.userId,
         },
+        select: {
+          id: true,
+          password: true,
+        },
       });
       if (!user) throw new NotFoundException('No user found!');
       const isMatched = await Util.match(user.password, dto.oldPassword);
@@ -129,7 +159,7 @@ export class AuthService {
           id: user.id,
         },
         data: {
-          password: dto.newPassword,
+          password: await Util.hash(dto.newPassword),
         },
       });
     });
@@ -140,6 +170,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: {
         id: userId,
+      },
+      select: {
+        refreshToken: true,
+        id: true,
+        email: true,
       },
     });
     if (!user || !user.refreshToken) {
@@ -190,6 +225,9 @@ export class AuthService {
       where: {
         id: userId,
       },
+      select: {
+        refreshToken: true,
+      },
     });
     if (!user || !user.refreshToken) {
       throw new ForbiddenException('User or user refresh token not found!');
@@ -199,7 +237,7 @@ export class AuthService {
         id: userId,
       },
       data: {
-        refreshToken: '',
+        refreshToken: null,
       },
     });
   }
