@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Util } from 'src/utils/utils';
 import { UserService } from './user.service';
@@ -21,5 +21,11 @@ export class UserController {
       });
     }
     return Util.success('User retrieved successfully!', users);
+  }
+
+  @Get(':id')
+  async getAUser(@Param('id') id: string) {
+    const user = await this.user.getAUser(id);
+    return Util.success('User fetched successfully', user);
   }
 }

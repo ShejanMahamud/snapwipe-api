@@ -1,5 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+
+const userSelectFields = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  profilePhoto: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+};
 
 @Injectable()
 export class UserService {
@@ -8,16 +19,7 @@ export class UserService {
   async getAllUser(limit?: number, cursor?: string) {
     const queryOptions: any = {
       take: limit ? limit : 10,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        profilePhoto: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userSelectFields,
       orderBy: {
         id: 'asc',
       },
@@ -30,5 +32,17 @@ export class UserService {
         }));
     }
     return await this.prisma.user.findMany(queryOptions);
+  }
+  async getAUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: userSelectFields,
+    });
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+    return user;
   }
 }

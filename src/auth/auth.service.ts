@@ -1,11 +1,14 @@
+import { MailerService } from '@nestjs-modules/mailer';
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils/utils';
 import { registerDto } from './dto/register.dto';
@@ -17,9 +20,10 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private mailer: MailerService,
   ) {}
-  async signUp(dto: registerDto) {
-    return await this.prisma.user.create({
+  async signUp(dto: registerDto, req: Request) {
+    await this.prisma.user.create({
       data: {
         ...dto,
         status: true,
@@ -30,6 +34,20 @@ export class AuthService {
         refreshToken: '',
       },
     });
+    try {
+      await this.mailer.sendMail({
+        to: dto.email,
+        subject: 'Welcome to SnapWipe',
+        template: 'welcome',
+        context: {
+          name: dto.name,
+          action_url: `${req.protocol}://${req.host}}`,
+          year: new Date().getFullYear(),
+        },
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
   }
 
   async signIn(dto: signinDto) {

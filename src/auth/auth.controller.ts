@@ -16,7 +16,7 @@ import { SignupErrorResponseDto } from './dto/signup-error-response.dto';
 export class AuthController {
   constructor(private auth: AuthService) {}
 
-  @Post('register')
+  @Post('signup')
   @ApiOperation({
     summary: 'Register user',
     description: 'Register a user',
@@ -32,8 +32,8 @@ export class AuthController {
     description: 'Bad Request (Validation Error)',
     type: SignupErrorResponseDto,
   })
-  async register(@Body() dto: registerDto) {
-    await this.auth.signUp(dto);
+  async register(@Body() dto: registerDto, @Req() req: Request) {
+    await this.auth.signUp(dto, req);
     return Util.success('Register Successful');
   }
 
