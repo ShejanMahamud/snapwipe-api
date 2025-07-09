@@ -11,6 +11,7 @@ import { Request } from 'express';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Util } from 'src/utils/utils';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { registerDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { signinDto } from './dto/signin.dto';
@@ -109,6 +110,30 @@ export class AuthService {
       });
     });
     return { message: 'Password successfully reset' };
+  }
+
+  async changePassword(dto: ChangePasswordDto) {
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: {
+          status: true,
+          isDeleted: false,
+          id: dto.userId,
+        },
+      });
+      if (!user) throw new NotFoundException('No user found!');
+      const isMatched = await Util.match(user.password, dto.oldPassword);
+      if (!isMatched) throw new ForbiddenException('Old Password is wrong');
+      await tx.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          password: dto.newPassword,
+        },
+      });
+    });
+    return { message: 'Password changed!' };
   }
 
   async refreshTokens(userId: string, refreshToken: string) {

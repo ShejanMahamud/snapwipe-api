@@ -4,6 +4,7 @@ import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Util } from 'src/utils/utils';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { SignupResponseDto } from './dto/register-response.dto';
 import { registerDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -88,6 +89,12 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.auth.resetPassword(dto);
     return Util.success('Password Reset Successfully!');
+  }
+  @Post('change-password')
+  @UseGuards(AuthGuard('jwt'))
+  async changePassword(@Body() dto: ChangePasswordDto) {
+    await this.auth.changePassword(dto);
+    return Util.success('Password Change Successfully!');
   }
 
   @Post('logout')
