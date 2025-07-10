@@ -1,17 +1,21 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { S3Module } from 'nestjs-s3';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
+import { ImageModule } from './image/image.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { UserModule } from './user/user.module';
-// 📚 Email config based on: https://www.freecodecamp.org/news/how-to-use-nodemailer-in-nestjs/
 
 @Module({
   imports: [
     PrismaModule,
     UserModule,
     AuthModule,
+    ImageModule,
+    SubscriptionModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -22,6 +26,32 @@ import { UserModule } from './user/user.module';
         },
       }),
     }),
+    S3Module.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const accessKeyId = config.get<string>('S3_ACCESS_KEY');
+        const secretAccessKey = config.get<string>('S3_SECRET_KEY');
+
+        if (!accessKeyId || !secretAccessKey) {
+          throw new Error(
+            'Missing AWS S3 credentials in environment variables',
+          );
+        }
+
+        return {
+          config: {
+            credentials: {
+              accessKeyId,
+              secretAccessKey,
+            },
+            region: 'ap-southeast-1',
+            forcePathStyle: true,
+            signatureVersion: 'v4',
+          },
+        };
+      },
+    }),
+
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

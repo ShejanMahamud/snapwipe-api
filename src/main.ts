@@ -2,10 +2,10 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
+import express from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/interceptors/http-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
@@ -15,6 +15,7 @@ async function bootstrap() {
   app.use(compression());
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());
+  app.use('/subscriptions/webhook', express.raw({ type: 'application/json' }));
   const config = new DocumentBuilder()
     .setTitle('SnapWipe')
     .setDescription('Background Remover & Image Upscaler SaaS Api')

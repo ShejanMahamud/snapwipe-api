@@ -9,22 +9,141 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-  username String @unique
-  name String
-  email String @unique
-  password String
-  role Role @default(user)
-  profilePhoto       String     @default("https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff")
-  isDeleted Boolean @default(false)
-  status Boolean @default(false)
-  refreshToken String? 
-  resetToken String?
-  resetTokenExp DateTime?
+  id               String         @id @default(uuid())
+  username         String         @unique
+  name             String
+  email            String         @unique
+  stripeCustomerId String?
+  password         String
+  role             Role           @default(user)
+  profilePhoto     String         @default("https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff")
+  isDeleted        Boolean        @default(false)
+  status           Boolean        @default(false)
+  refreshToken     String?
+  resetToken       String?
+  resetTokenExp    DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  ImageHistory     ImageHistory[]
+  Payment          Payment[]
+
+  @@map("users")
+}
+
+model ImageHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  imageUrl  String
+  jobId     String
+  status    Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("image-history")
+}
+
+model Plan {
+  id            String        @id @default(uuid())
+  name          String
+  price         Decimal
+  stripePriceId String
+  planType      PlanType      @default(free)
+  planPeriod    PlanPeriod    @default(monthly)
+  credits       Int
+  status        Boolean
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  planBenefit   PlanBenefit[]
+
+  @@map("plans")
+}
+
+model Benefit {
+  id          String        @id @default(uuid())
+  name        String
+  slug        String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  PlanBenefit PlanBenefit[]
+
+  @@map("benefits")
+}
+
+model PlanBenefit {
+  id        String   @id @default(uuid())
+  benefitId String
+  planId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("users")
+  plan    Plan    @relation(fields: [planId], references: [id])
+  benefit Benefit @relation(fields: [benefitId], references: [id])
+
+  @@unique([planId, benefitId])
+  @@map("plan_benefits")
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  userId               String
+  planId               String
+  stripeSubscriptionId String
+  nextResetDate        DateTime
+  status               Boolean
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  Payment              Payment[]
+
+  @@unique([userId, status], name: "one_active_subscription_per_user")
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                    String        @id @default(uuid())
+  userId                String
+  subscriptionId        String
+  paymentMethodId       String
+  stripePaymentIntentId String
+  stripeInvoiceId       String
+  amount                String
+  currency              String
+  status                PaymentStatus
+  periodStart           DateTime
+  periodEnd             DateTime
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id])
+  subscription  Subscription  @relation(fields: [subscriptionId], references: [id])
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("payments")
+}
+
+model PaymentMethod {
+  id        String    @id @default(uuid())
+  name      String
+  status    Boolean
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Payment   Payment[]
+}
+
+enum PaymentStatus {
+  paid
+  failed
+  refunded
+}
+
+enum PlanType {
+  free
+  premium
+}
+
+enum PlanPeriod {
+  monthly
+  yearly
 }
 
 enum Role {
