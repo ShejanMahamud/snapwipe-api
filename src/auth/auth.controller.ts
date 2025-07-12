@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Util } from 'src/utils/utils';
 import { AuthService } from './auth.service';
@@ -18,6 +19,7 @@ import { SignupErrorResponseDto } from './dto/signup-error-response.dto';
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @Post('signup')
   @ApiOperation({
     summary: 'Register user',
@@ -39,6 +41,7 @@ export class AuthController {
     return Util.success('Register Successful');
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @Post('signin')
   @ApiOperation({
     summary: 'Login user',
@@ -64,6 +67,7 @@ export class AuthController {
     const result = await this.auth.signIn(dto);
     return Util.success('Login Successful', result);
   }
+  @Throttle({ default: { limit: 3, ttl: 60 } })
   @Post('refresh')
   @UseGuards(AuthGuard('jwt-refresh'))
   async refreshToken(@Req() req: Request) {
@@ -79,6 +83,7 @@ export class AuthController {
     return newAccessToken.access_token;
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   async me(@Req() req: Request) {
@@ -86,17 +91,20 @@ export class AuthController {
     return Util.success('User logged in!', result);
   }
 
+  @Throttle({ default: { limit: 2, ttl: 60 } })
   @Post('password-reset-email')
   async sendPasswordResetEmail(@Body() email: string, @Req() req: Request) {
     await this.auth.sendResetPasswordEmail(email, req);
     return Util.success('Password Reset Email Sent Successfully!');
   }
 
+  @Throttle({ default: { limit: 2, ttl: 60 } })
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.auth.resetPassword(dto);
     return Util.success('Password Reset Successfully!');
   }
+  @Throttle({ default: { limit: 2, ttl: 60 } })
   @Post('change-password')
   @UseGuards(AuthGuard('jwt'))
   async changePassword(@Body() dto: ChangePasswordDto) {
@@ -104,10 +112,25 @@ export class AuthController {
     return Util.success('Password Change Successfully!');
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60 } })
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
   async logOut(@Req() req: Request) {
     await this.auth.logOut(req);
     return Util.success('Logout successfully!');
+  }
+
+  @Throttle({ default: { limit: 3, ttl: 60 } })
+  @Post('resend-email-verify')
+  async resendVerify(@Body() email: string, @Req() req: Request) {
+    await this.auth.resendVerifyEmail(email, req);
+    return Util.success('Email verify send successfully!');
+  }
+
+  @Throttle({ default: { limit: 3, ttl: 60 } })
+  @Post('verify')
+  async verify(@Body() body: { userId: string; verifyToken: string }) {
+    await this.auth.verifyEmail(body.verifyToken, body.userId);
+    return Util.success('Email address verified!');
   }
 }
