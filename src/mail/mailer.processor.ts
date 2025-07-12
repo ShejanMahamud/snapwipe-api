@@ -22,7 +22,7 @@ export class MailProcessor extends WorkerHost {
         to,
         subject: 'Welcome to SnapWipe',
         template: 'welcome',
-        context: { name, url, year },
+        context: { name, action_url: url, year },
       });
     }
     if (job.name === 'send-reset-password') {
@@ -30,7 +30,15 @@ export class MailProcessor extends WorkerHost {
         to,
         subject: 'Reset Your Password',
         template: 'reset-password',
-        context: { name, url, year },
+        context: { name, resetUrl: url, year },
+      });
+    }
+    if (job.name === 'send-verify') {
+      return await this.mailer.sendMail({
+        to,
+        subject: 'Send Verify Email',
+        template: 'verify-email',
+        context: { name, verifyUrl: url, year },
       });
     }
   }

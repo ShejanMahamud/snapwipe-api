@@ -4,7 +4,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { S3Module } from 'nestjs-s3';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
+import { BenefitModule } from './benefit/benefit.module';
 import { ImageModule } from './image/image.module';
+import { PlanModule } from './plan/plan.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { UserModule } from './user/user.module';
@@ -15,6 +17,8 @@ import { UserModule } from './user/user.module';
     UserModule,
     AuthModule,
     ImageModule,
+    PlanModule,
+    BenefitModule,
     SubscriptionModule,
     BullModule.forRootAsync({
       inject: [ConfigService],

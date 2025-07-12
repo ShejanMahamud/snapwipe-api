@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateUserDto } from './dto/update.dto';
 
-const userSelectFields = {
+export const userSelectFields = {
   id: true,
   name: true,
   email: true,

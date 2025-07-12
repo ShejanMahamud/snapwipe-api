@@ -18,14 +18,18 @@ model User {
   role             Role           @default(user)
   profilePhoto     String         @default("https://ui-avatars.com/api/?name=John+Doe&background=random&color=fff")
   isDeleted        Boolean        @default(false)
+  credits          Int             @default(0)
   status           Boolean        @default(false)
   refreshToken     String?
   resetToken       String?
   resetTokenExp    DateTime?
+  verifyToken       String?
+  verifyTokenExp    DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  ImageHistory     ImageHistory[]
-  Payment          Payment[]
+  imageHistory     ImageHistory[]
+  payment          Payment[]
+  UsageHistory     UsageHistory[]
 
   @@map("users")
 }
@@ -65,7 +69,7 @@ model Benefit {
   slug        String
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  PlanBenefit PlanBenefit[]
+  planBenefit PlanBenefit[]
 
   @@map("benefits")
 }
@@ -74,26 +78,28 @@ model PlanBenefit {
   id        String   @id @default(uuid())
   benefitId String
   planId    String
+  value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  plan    Plan    @relation(fields: [planId], references: [id])
-  benefit Benefit @relation(fields: [benefitId], references: [id])
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  benefit Benefit @relation(fields: [benefitId], references: [id], onDelete: Cascade)
 
   @@unique([planId, benefitId])
   @@map("plan_benefits")
 }
 
 model Subscription {
-  id                   String    @id @default(uuid())
+  id                   String         @id @default(uuid())
   userId               String
   planId               String
   stripeSubscriptionId String
   nextResetDate        DateTime
   status               Boolean
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
   Payment              Payment[]
+  UsageHistory         UsageHistory[]
 
   @@unique([userId, status], name: "one_active_subscription_per_user")
   @@map("subscriptions")
@@ -128,6 +134,27 @@ model PaymentMethod {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   Payment   Payment[]
+}
+
+model UsageHistory {
+  id             String             @id @default(ulid())
+  userId         String
+  subscriptionId String
+  action         UsageHistoryAction
+  amount         Int
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id])
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("usage_history")
+}
+
+enum UsageHistoryAction {
+  bg_remover
+  image_upscaler
 }
 
 enum PaymentStatus {

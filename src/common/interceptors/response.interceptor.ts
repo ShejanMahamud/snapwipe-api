@@ -13,12 +13,12 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
-    const startTime = Date.now(); // ✅ start timer
+    const startTime = Date.now();
 
     return next.handle().pipe(
       map((originalResponse) => {
         const statusCode = response.statusCode;
-        const duration = Date.now() - startTime; // ✅ calculate elapsed time
+        const duration = Date.now() - startTime;
 
         const data = originalResponse?.data ?? originalResponse;
         const message = originalResponse?.message ?? 'Request successful';
@@ -32,7 +32,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
             statusCode,
             timestamp: new Date().toISOString(),
             path: request.url,
-            responseTime: `${duration}ms`, // ✅ include response time
+            responseTime: `${duration}ms`,
             ...customMeta,
           },
         };

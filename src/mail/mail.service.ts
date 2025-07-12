@@ -46,4 +46,24 @@ export class MailService {
       },
     );
   }
+  async sendVerifyEmail(to: string, name: string, url: string) {
+    await this.mailerQueue.add(
+      'send-verify',
+      {
+        to,
+        name,
+        url,
+        year: new Date().getFullYear(),
+      },
+      {
+        removeOnComplete: {
+          age: 3600,
+          count: 1000,
+        },
+        removeOnFail: {
+          age: 3600 * 24,
+        },
+      },
+    );
+  }
 }

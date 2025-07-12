@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,10 +7,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
 import { Request } from 'express';
 import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { userSelectFields } from 'src/user/user.service';
 import { Util } from 'src/utils/utils';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { registerDto } from './dto/register.dto';
@@ -25,20 +26,34 @@ export class AuthService {
     private mailer: MailService,
   ) {}
   async signUp(dto: registerDto, req: Request) {
-    await this.prisma.user.create({
+    const strongPasswordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()[\]{}<>|\\/~`+=._-])[A-Za-z\d@$!%*?&#^()[\]{}<>|\\/~`+=._-]{8,}$/;
+    if (!strongPasswordRegex.test(dto.password)) {
+      throw new BadRequestException(
+        'Password must be contains At least one lowercase letter,At least one uppercase letter, At least one number, At least one special character & At least one special character',
+      );
+    }
+    const verifyToken = Util.generateToken();
+    const user = await this.prisma.user.create({
       data: {
         ...dto,
-        status: true,
         profilePhoto: dto.profilePhoto
           ? dto.profilePhoto
           : `https://ui-avatars.com/api/?name=${dto.name}&background=random&color=fff`,
         password: await Util.hash(dto.password),
+        verifyToken: await Util.hash(verifyToken),
+        verifyTokenExp: new Date(Date.now() + 1000 * 60 * 15),
       },
     });
     await this.mailer.sendWelcomeEmail(
       dto.email,
       dto.name,
       `${req.protocol}://${req.get('host')}`,
+    );
+    await this.mailer.sendVerifyEmail(
+      dto.email,
+      dto.name,
+      `${req.protocol}://${req.get('host')}/vt=${verifyToken}&uid=${user.id}`,
     );
     return { message: 'User registered successfully' };
   }
@@ -52,10 +67,14 @@ export class AuthService {
         email: true,
         id: true,
         password: true,
+        status: true,
       },
     });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+    if (!user.status) {
+      throw new ForbiddenException('Email must be verified!');
     }
     const isMatched = await Util.match(user.password, dto.password);
     if (!isMatched) {
@@ -67,7 +86,7 @@ export class AuthService {
   }
 
   async sendResetPasswordEmail(email: string, req: Request) {
-    const resetToken = randomBytes(32).toString('hex');
+    const resetToken = Util.generateToken();
     const hashedToken = await Util.hash(resetToken);
     const user = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
@@ -138,6 +157,89 @@ export class AuthService {
     return { message: 'Password successfully reset' };
   }
 
+  async me(req: Request) {
+    const user = req.user as { sub: string; email: string };
+    if (!user) throw new UnauthorizedException('Unauthorized Request!');
+    const isExists = await this.prisma.user.findUnique({
+      where: {
+        id: user.sub,
+        isDeleted: false,
+        status: true,
+      },
+      select: userSelectFields,
+    });
+    if (!isExists) {
+      throw new ForbiddenException('User not found!');
+    }
+    return isExists;
+  }
+
+  async resendVerifyEmail(email: string, req: Request) {
+    const verifyToken = Util.generateToken();
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email,
+        isDeleted: false,
+        status: false,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+
+    await this.prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        verifyToken: await Util.hash(verifyToken),
+        verifyTokenExp: new Date(Date.now() + 1000 * 60 * 15),
+      },
+    });
+    await this.mailer.sendVerifyEmail(
+      user.email,
+      user.name,
+      `${req.protocol}://${req.get('host')}/vt=${verifyToken}&uid=${user.id}`,
+    );
+    return { message: 'Email resend successfully!' };
+  }
+
+  async verifyEmail(verifyToken: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        verifyToken: true,
+        verifyTokenExp: true,
+      },
+    });
+    if (!user || !user.verifyToken || !user.verifyTokenExp) {
+      throw new NotFoundException('User not found');
+    }
+    const isMatched = await Util.match(user.verifyToken, verifyToken);
+    if (!isMatched) {
+      throw new ForbiddenException('Token is not valid');
+    }
+    await this.prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        status: true,
+        verifyToken: null,
+        verifyTokenExp: null,
+      },
+    });
+    return { message: 'Email verified!' };
+  }
+
   async changePassword(dto: ChangePasswordDto) {
     await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
@@ -180,6 +282,26 @@ export class AuthService {
     if (!user || !user.refreshToken) {
       throw new ForbiddenException('User not found');
     }
+    try {
+      await this.jwt.verifyAsync(refreshToken, {
+        secret: this.config.get('REFRESH_TOKEN_SECRET'),
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.name === 'TokenExpiredError') {
+          throw new ForbiddenException('Refresh token has expired');
+        }
+
+        if (error.name === 'JsonWebTokenError') {
+          throw new ForbiddenException('Invalid refresh token');
+        }
+
+        throw new ForbiddenException(error.message);
+      }
+
+      throw new ForbiddenException('Unknown token verification error');
+    }
+
     const isMatched = await Util.match(user.refreshToken, refreshToken);
 
     if (!isMatched) {
@@ -220,10 +342,14 @@ export class AuthService {
     });
   }
 
-  async logOut(userId: string) {
+  async logOut(req: Request) {
+    const userPayload = req.user as { sub: string; email: string };
+    if (!userPayload) {
+      throw new UnauthorizedException('User not logged in');
+    }
     const user = await this.prisma.user.findUnique({
       where: {
-        id: userId,
+        id: userPayload.sub,
       },
       select: {
         refreshToken: true,
@@ -234,7 +360,7 @@ export class AuthService {
     }
     return this.prisma.user.update({
       where: {
-        id: userId,
+        id: userPayload.sub,
       },
       data: {
         refreshToken: null,

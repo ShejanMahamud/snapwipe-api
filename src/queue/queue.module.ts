@@ -6,9 +6,6 @@ import { Module } from '@nestjs/common';
     BullModule.registerQueue({
       name: 'mailer',
     }),
-    BullModule.registerQueue({
-      name: 'file-upload',
-    }),
   ],
   exports: [BullModule],
 })

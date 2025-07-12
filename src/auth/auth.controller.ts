@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -79,6 +79,13 @@ export class AuthController {
     return newAccessToken.access_token;
   }
 
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  async me(@Req() req: Request) {
+    const result = await this.auth.me(req);
+    return Util.success('User logged in!', result);
+  }
+
   @Post('password-reset-email')
   async sendPasswordResetEmail(@Body() email: string, @Req() req: Request) {
     await this.auth.sendResetPasswordEmail(email, req);
@@ -99,8 +106,8 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
-  async logOut(@Body() userId: string) {
-    await this.auth.logOut(userId);
+  async logOut(@Req() req: Request) {
+    await this.auth.logOut(req);
     return Util.success('Logout successfully!');
   }
 }
